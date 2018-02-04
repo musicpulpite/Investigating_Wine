@@ -1,0 +1,68 @@
+---
+title: "Investigating 150,000 WineEnthusiast Reviews"
+author: "William M."
+date: "January 27, 2018"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+````{r required packages and data, echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
+library(ggplot2)
+library(readr)
+library(lubridate)
+library(knitr)
+winemag_data_130k_v2 <- read_csv("~/R Files/winemag-data-130k-v2.csv")
+````  
+
+#Investigating 150,000 WineEnthusiast Reviews  
+Using an independently collected database of reviews on over 150,000 wines web scraped from winemag.com we will attempt to explore trends and predictable patterns in the features of the world's best wines. 
+
+###Acknowledgements  
+link: https://www.kaggle.com/zynicide/wine-reviews  
+user: "zackthoutt"  
+
+##Trends in Price and Quality  
+We will seek to investigate the age-old question of whether or not our money is buying us discernible increases in quality when it comes to our wine. From the total data set we took a random sample of 1,000 listings and plotted price vs. points. The initial plot suggested an exponential relationship so we replotted log(price) vs. points and fit a linear model (by default, r uses base 10).  
+````{r Price v Quality, echo=TRUE, cache=TRUE}
+#Create sample set  
+winemagv2_sample<-winemag_data_130k_v2[sample(dim(winemag_data_130k_v2)[[1]], size = 1000, replace = FALSE),]
+#Initial plot
+plot(winemagv2_sample$price, winemagv2_sample$points)
+#Log plot
+plot(log(winemagv2_sample$price), winemagv2_sample$points)
+abline(lm(points~log(price), data=winemagv2_sample))
+lm_winev2<-lm(points~log(price), data=winemagv2_sample)
+summary(lm_winev2)
+````  
+
+This implies an exponential relationship between price and quality where 34% of the response variance can be explained by the predictor given the equation: 
+$$
+points=2.70*\log_{10} price + 79.43
+$$    
+
+##Quality by Country of Production  
+Using categorical linear regression, we can refine our original model to include country of production. This way we can investigate for systematic differences in quality based on price. We only include the top five most prolific countries in order to simplify our assessment.  
+````{r Country Production, echo=TRUE, cache=TRUE}
+wine_topcountry<-winemag_data_130k_v2[winemag_data_130k_v2$country %in% c("US", "France", "Italy", "Spain", "Portugal"),]
+lm_topcountry<-lm(points~log(price)+country, data=wine_topcountry, na.action=na.omit)
+summary(lm_topcountry)
+````  
+For a given price, a wine from Portugal is on average rated the highest by WineEnthusiast. Relative to a wine from Portugal, a wine from France is rated 0.71 points lower, a wine from Italy is rated 1.06 points lower, a wine from the US is rated 1.11 points lower and a wine from Spain is rated 1.30 points lower.  
+````{r ANOVA, echo=TRUE, cache=TRUE}
+lm_total<-lm(points~log(price), data=winemag_data_130k_v2[winemag_data_130k_v2$country %in% c("US", "France", "Italy", "Spain", "Portugal"),], na.action=na.omit)
+anova(lm_total, lm_topcountry, test="LRT")
+````  
+By performing an ANOVA test on the linear model of the subsetted dataframe with and without the categorical variable we can conclude that the addition of the variable is statistically significant at the p=0.001 level.  
+
+##Varieties by Price and Points 
+We aggregate the entire data set by variety showing frequency of each on this website with both average listed price and average listed rating and order them from most to least frequent.   
+````{r Variety & Price, echo=TRUE, cache=FALSE}
+winemag_variety<-aggregate(winemag_data_130k_v2[,c("price", "points")], by=list(winemag_data_130k_v2$variety), FUN=mean, na.rm=TRUE)  
+winemag_freq<-as.data.frame(table(winemag_data_130k_v2$variety))
+winemag_finallist<-merge(x=winemag_variety, y=winemag_freq, by.x="Group.1", by.y="Var1")
+winemag_finallist<-winemag_finallist[order(-winemag_finallist$Freq),]
+winemag_finallist[1:25,]
+````  
+
+
