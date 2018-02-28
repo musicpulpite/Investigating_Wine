@@ -100,6 +100,8 @@ for (i in 1:dim(wine_topvari)[1]){
 wine_inputwords<-as.data.frame(matrix_words)
 names(wine_inputwords)<-inputwords
 wine_inputwords<-cbind(wine_inputwords, variety = winemag_data_130k_v2[winemag_data_130k_v2$variety %in% winemag_finallist$Group.1[1:25] & !is.na(winemag_data_130k_v2$description), "variety"])
+wine_inputwords$variety<-as.factor(wine_inputwords$variety)
+````  
 
 
 
