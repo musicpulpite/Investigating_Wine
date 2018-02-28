@@ -12,7 +12,18 @@ library(ggplot2)
 library(readr)
 library(lubridate)
 library(knitr)
+
+#external scripts
+source('textCleanup(1).R')
+
+#stopwords list for cleanup function
+stopwords = scan("stopwords.txt", what="character",sep=",")
+
+###############Read in the data#########################################
 winemag_data_130k_v2 <- read_csv("~/R Files/winemag-data-130k-v2.csv")
+
+#set psuedo-random number seed for random sampling
+set.seed(100)
 ````  
 
 #Investigating 150,000 WineEnthusiast Reviews  
@@ -64,5 +75,32 @@ winemag_finallist<-merge(x=winemag_variety, y=winemag_freq, by.x="Group.1", by.y
 winemag_finallist<-winemag_finallist[order(-winemag_finallist$Freq),]
 winemag_finallist[1:25,]
 ````  
+
+##Variety Prediction with Neural Networks  
+````{r review processing, echo=TRUE, cache=TRUE}
+#create list_vari list for creating the wordlist
+#This filters out specfic mention of the varietal (what we are trying to predict)
+#from the wordlist (and eventually inputwords list) be used to produce the input vector
+list_vari<-unique(textCleanup(winemag_data_130k_v2$variety))
+
+wine_wordlist<-textCleanup(winemag_data_130k_v2$description)
+wine_wordlist<-wine_wordlist[wine_wordlist %in% list_vari ==FALSE]
+wine_wordtable<-table(wine_wordlist)
+wine_wordtable<-wine_wordtable[order(-wine_wordtable)]
+inputwords<-names(wine_wordtable[1:100])
+
+#produce dataframe of every case with a review(they all do) from the top 25 most frequently reviewed wines
+#the variables indicate the presence (or lack) in the review of each of the top 100 most frequently used words
+wine_topvari<-winemag_data_130k_v2[winemag_data_130k_v2$variety %in% winemag_finallist$Group.1[1:25] & !is.na(winemag_data_130k_v2$description), ]
+matrix_words<-matrix(nrow=dim(wine_topvari)[1], ncol=100)
+for (i in 1:dim(wine_topvari)[1]){
+      matrix_words[i,] <- as.numeric(inputwords %in% textCleanup(winemag_data_130k_v2$description[i]))
+}
+
+wine_inputwords<-as.data.frame(matrix_words)
+names(wine_inputwords)<-inputwords
+wine_inputwords<-cbind(wine_inputwords, variety = winemag_data_130k_v2[winemag_data_130k_v2$variety %in% winemag_finallist$Group.1[1:25] & !is.na(winemag_data_130k_v2$description), "variety"])
+
+
 
 
